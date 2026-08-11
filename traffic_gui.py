@@ -4,26 +4,17 @@ import numpy as np
 import joblib
 from tensorflow.keras.models import load_model
 
-# ===========================
-# Load AI Model
-# ===========================
-
+# Load trained model and preprocessing files
 model = load_model("Traffic_Signal_Optimization_Model.keras")
 scaler = joblib.load("scaler.pkl")
 traffic_encoder = joblib.load("traffic_encoder.pkl")
 
-# ===========================
-# Create Window
-# ===========================
-
+# Create main window
 root = tk.Tk()
 root.title("Traffic Signal Timing Optimization")
 root.geometry("500x650")
 
-# ===========================
-# Input Fields
-# ===========================
-
+# Input fields
 labels = [
     "Car Count",
     "Bike Count",
@@ -36,38 +27,52 @@ labels = [
 entries = []
 
 for label in labels:
-    tk.Label(root, text=label, font=("Arial",12)).pack(pady=3)
+    tk.Label(
+        root,
+        text=label,
+        font=("Arial", 12)
+    ).pack(pady=3)
 
     entry = tk.Entry(root, width=20)
     entry.pack()
 
     entries.append(entry)
 
-# ===========================
-# Traffic Light
-# ===========================
-
+# Traffic light canvas
 canvas = tk.Canvas(root, width=150, height=300)
 canvas.pack(pady=20)
 
-red = canvas.create_oval(40,20,110,90,fill="gray")
-yellow = canvas.create_oval(40,110,110,180,fill="gray")
-green = canvas.create_oval(40,200,110,270,fill="gray")
+red = canvas.create_oval(
+    40, 20, 110, 90,
+    fill="gray"
+)
 
-traffic_result = tk.Label(root,font=("Arial",14))
+yellow = canvas.create_oval(
+    40, 110, 110, 180,
+    fill="gray"
+)
+
+green = canvas.create_oval(
+    40, 200, 110, 270,
+    fill="gray"
+)
+
+# Result labels
+traffic_result = tk.Label(
+    root,
+    font=("Arial", 14)
+)
 traffic_result.pack()
 
-green_time_result = tk.Label(root,font=("Arial",14))
+green_time_result = tk.Label(
+    root,
+    font=("Arial", 14)
+)
 green_time_result.pack()
 
-# ===========================
-# Prediction Function
-# ===========================
-
+# Prediction function
 def predict():
-
     try:
-
         car = int(entries[0].get())
         bike = int(entries[1].get())
         bus = int(entries[2].get())
@@ -75,57 +80,105 @@ def predict():
         hour = int(entries[4].get())
         day = int(entries[5].get())
 
+        # Basic validation
+        if hour < 0 or hour > 23:
+            raise ValueError("Hour must be between 0 and 23.")
+
+        if day < 1 or day > 7:
+            raise ValueError("Day must be between 1 and 7.")
+
+        if min(car, bike, bus, truck) < 0:
+            raise ValueError("Vehicle counts cannot be negative.")
+
+        # Calculate total vehicles
         total = car + bike + bus + truck
 
-        sample = [[car,bike,bus,truck,total,hour,day]]
+        # Create input sample
+        sample = [[
+            car,
+            bike,
+            bus,
+            truck,
+            total,
+            hour,
+            day
+        ]]
 
+        # Scale input
         sample = scaler.transform(sample)
 
-        prediction = model.predict(sample,verbose=0)
+        # Model prediction
+        prediction = model.predict(
+            sample,
+            verbose=0
+        )
 
-        predicted_class = np.argmax(prediction)
+        predicted_class = np.argmax(
+            prediction,
+            axis=1
+        )[0]
 
-        predicted_traffic = traffic_encoder.inverse_transform([predicted_class])[0]
+        # Convert class number to traffic label
+        predicted_traffic = traffic_encoder.inverse_transform(
+            [predicted_class]
+        )[0]
 
-        canvas.itemconfig(red,fill="gray")
-        canvas.itemconfig(yellow,fill="gray")
-        canvas.itemconfig(green,fill="gray")
+        # Reset traffic lights
+        canvas.itemconfig(red, fill="gray")
+        canvas.itemconfig(yellow, fill="gray")
+        canvas.itemconfig(green, fill="gray")
 
-        if predicted_traffic.lower()=="low":
+        # Traffic timing logic
+        if predicted_traffic.lower() == "low":
+            green_time = 20
+            canvas.itemconfig(
+                green,
+                fill="green"
+            )
 
-            green_time=20
-            canvas.itemconfig(green,fill="green")
+        elif predicted_traffic.lower() == "normal":
+            green_time = 40
+            canvas.itemconfig(
+                green,
+                fill="green"
+            )
 
-        elif predicted_traffic.lower()=="normal":
-
-            green_time=40
-            canvas.itemconfig(green,fill="green")
-
-        elif predicted_traffic.lower()=="high":
-
-            green_time=60
-            canvas.itemconfig(yellow,fill="yellow")
+        elif predicted_traffic.lower() == "high":
+            green_time = 60
+            canvas.itemconfig(
+                green,
+                fill="green"
+            )
 
         else:
+            green_time = 90
+            canvas.itemconfig(
+                green,
+                fill="green"
+            )
 
-            green_time=90
-            canvas.itemconfig(red,fill="red")
-
-        traffic_result.config(text="Traffic : "+predicted_traffic)
+        # Display results
+        traffic_result.config(
+            text=f"Traffic : {predicted_traffic}"
+        )
 
         green_time_result.config(
-            text="Recommended Green Time : {} Seconds".format(green_time)
+            text=f"Recommended Green Time : {green_time} Seconds"
+        )
+
+    except ValueError as e:
+        messagebox.showerror(
+            "Input Error",
+            str(e)
         )
 
     except Exception as e:
+        messagebox.showerror(
+            "Error",
+            f"Something went wrong:\n{e}"
+        )
 
-        messagebox.showerror("Error",str(e))
-
-# ===========================
-# Button
-# ===========================
-
-tk# Predict Button
+# Predict button
 tk.Button(
     root,
     text="Predict",
@@ -135,39 +188,5 @@ tk.Button(
     font=("Arial", 13)
 ).pack(pady=15)
 
-# Start GUI
+# Start application
 root.mainloop()
-
-def predict():
-    try:
-        ...
-    except Exception as e:
-        messagebox.showerror("Error", str(e))
-
-# <-- No spaces before tk.Button
-tk.Button(...)
-
-root.mainloop()
-
-canvas.itemconfig(green, fill="green")
-
-for sec in range(green_time,0,-1):
-    green_time_label.config(text=f"Green : {sec}")
-    root.update()
-    root.after(1000)
-
-canvas.itemconfig(green, fill="gray")
-canvas.itemconfig(yellow, fill="yellow")
-
-for sec in range(3,0,-1):
-    green_time_label.config(text=f"Yellow : {sec}")
-    root.update()
-    root.after(1000)
-
-canvas.itemconfig(yellow, fill="gray")
-canvas.itemconfig(red, fill="red")
-
-for sec in range(5,0,-1):
-    green_time_label.config(text=f"Red : {sec}")
-    root.update()
-    root.after(1000)
